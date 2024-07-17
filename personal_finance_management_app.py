@@ -82,5 +82,27 @@ class FinanceApp:
             self.update_category_totals()
 
         except ValueError as e:
-            messagebox.showerror("Invalid input", str(e)
+            messagebox.showerror("Invalid input", str(e))
+
+    def update_expense_list(self):
+        # Clear current list
+        for i in self.expense_tree.get_children():
+            self.expense_tree.delete(i)
+
+        # Add all expenses
+        for amount, category in self.expenses:
+            self.expense_tree.insert("", "end", values=(amount,  category))
+
+    def update_category_totals(self):
+        # Clear current list
+        self.category_list.delete(0, tk.END)
+
+        # Add all category totals
+        for category, total in self.category_totals.items():
+            self.category_list.insert(tk.END, f"{category}: {total}")
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = FinanceApp(root)
+    root.mainloop()
                                          
