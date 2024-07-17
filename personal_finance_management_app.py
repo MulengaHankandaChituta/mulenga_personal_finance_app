@@ -51,5 +51,36 @@ class FinanceApp:
         category_frame = tk.Frame(self.root)
         category_frame.pack(pady=10)
 
-        
+        tk.Label(category_frame, text="Category Totals:").pack()
+        self.category_list = tk.Listbox(category_frame)
+        self.category_list.pack()
+
+    def add_expense(self):
+        try:
+            amount = float(self.amount_entry.get())
+            category = self.category_entry.get().strip()
+
+            if not category:
+                raise ValueError("Category cannot be empty")
+            
+            # Add expense to list and update total
+            self.expenses.append((amount, category))
+            self.total_expense.set(sum(exp[0] for exp in self.expenses))
+
+            # Update category totals
+            if category in self.category_totals:
+                self.category_totals[category] += amount
+            else:
+                self.category_totals[category] = amount
+
+            # Clear entry fields
+            self.amount_entry.delete(0, tk.END)
+            self.category_entry.delete(0, tk.END)
+
+            # Update GUI
+            self.update_expense_list()
+            self.update_category_totals()
+
+        except ValueError as e:
+            messagebox.showerror("Invalid input", str(e)
                                          
