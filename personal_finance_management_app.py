@@ -29,4 +29,27 @@ class FinanceApp:
         self.category_entry.grid(row=0, column=3,  padx=5)
 
         tk.button(expense_frame, text="Add Expense", command=self.add_expense).grid(row=0, column=4, padx=5)
+
+        # Total Expense Frame
+        total_frame = tk.Frame(self.root)
+        total_frame.pack(pady=10)
+
+        tk.Label(total_frame, text="Total Expenses:").grid(row=0, column=0, padx=5)
+        self.total_label = tk.Label(total_frame, textvariable=self.total_expense)
+        self.total_label.grid(row=0, column=1, padx=5)
+
+        # Expense List Frame
+        list_frame = tk.Frame(self.root)
+        list_frame.pack(pady=10)
+
+        self.expense_tree = ttk.Treeview(list_frame, columns=("Amount", "Category"))
+        self.expense_tree.heading("Amount", text="Amount")
+        self.expense_tree.heading("Category", text="Category")
+        self.expense_tree.pack()
+
+        # Category Totals Frame
+        category_frame = tk.Frame(self.root)
+        category_frame.pack(pady=10)
+
         
+                                         
