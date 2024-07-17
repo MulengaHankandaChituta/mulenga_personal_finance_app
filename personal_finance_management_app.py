@@ -28,7 +28,7 @@ class FinanceApp:
         self.category_entry = tk.Entry(expense_frame)
         self.category_entry.grid(row=0, column=3,  padx=5)
 
-        tk.button(expense_frame, text="Add Expense", command=self.add_expense).grid(row=0, column=4, padx=5)
+        tk.Button(expense_frame, text="Add Expense", command=self.add_expense).grid(row=0, column=4, padx=5)
 
         # Total Expense Frame
         total_frame = tk.Frame(self.root)
