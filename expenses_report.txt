@@ -1,3 +1,4 @@
-Amount: 50.0, Category: groceries
-Amount: 25.0, Category: data
-Amount: 10.0, Category: airtime
+Amount: 50.0, Category: groceries, Date: None
+Amount: 25.0, Category: data, Date: None
+Amount: 10.0, Category: airtime, Date: None
+Amount: 45.0, Category: betting, Date: 2024-07-20 20:47:57

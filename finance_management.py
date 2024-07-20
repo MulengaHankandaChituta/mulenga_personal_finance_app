@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox, ttk
 import sqlite3
+from datetime import datetime
 import os
 
 class FinanceApp:
@@ -26,7 +27,8 @@ class FinanceApp:
             CREATE TABLE IF NOT EXISTS expenses (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 amount REAL,
-                category TEXT
+                category TEXT,
+                date TEXT
             )
         ''')
         self.conn.commit()
@@ -58,9 +60,10 @@ class FinanceApp:
         list_frame = tk.Frame(self.root)
         list_frame.pack(pady=10)
 
-        self.expense_tree = ttk.Treeview(list_frame, columns=("Amount", "Category"))
+        self.expense_tree = ttk.Treeview(list_frame, columns=("Amount", "Category", "Date"))
         self.expense_tree.heading("Amount", text="Amount")
         self.expense_tree.heading("Category", text="Category")
+        self.expense_tree.heading("Date", text="Date")
         self.expense_tree.pack()
 
         # Category Totals Frame
@@ -81,15 +84,16 @@ class FinanceApp:
         try:
             amount = float(self.amount_entry.get())
             category = self.category_entry.get().strip()
+            date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
             if not category:
                 raise ValueError("Category cannot be empty")
 
             # Insert expense into the database
             self.cursor.execute('''
-                INSERT INTO expenses (amount, category)
-                VALUES (?, ?)
-            ''', (amount, category))
+                INSERT INTO expenses (amount, category, date)
+                VALUES (?, ?, ?)
+            ''', (amount, category, date))
             self.conn.commit()
 
             # Update total expense and category totals
@@ -117,9 +121,9 @@ class FinanceApp:
             self.expense_tree.delete(i)
 
         # Add all expenses
-        self.cursor.execute('SELECT amount, category FROM expenses')
-        for amount, category in self.cursor.fetchall():
-            self.expense_tree.insert("", "end", values=(amount, category))
+        self.cursor.execute('SELECT amount, category, date FROM expenses')
+        for amount, category, date in self.cursor.fetchall():
+            self.expense_tree.insert("", "end", values=(amount, category, date))
 
     def update_category_totals(self):
         # Clear current list
@@ -131,14 +135,20 @@ class FinanceApp:
             self.category_list.insert(tk.END, f"{category}: {total}")
 
     def generate_report(self):
-        """Generate a report of expenses and save it as a text file."""
+        """Generate a report of expenses and display it."""
         report_file = 'expenses_report.txt'
         with open(report_file, 'w') as file:
-            self.cursor.execute('SELECT amount, category FROM expenses')
-            for amount, category in self.cursor.fetchall():
-                file.write(f"Amount: {amount}, Category: {category}\n")
+            self.cursor.execute('SELECT amount, category, date FROM expenses')
+            for amount, category, date in self.cursor.fetchall():
+                file.write(f"Amount: {amount}, Category: {category}, Date: {date}\n")
 
-        messagebox.showinfo("Report Generated", f"Report saved as {report_file}")
+        # Open the report file using the default text editor
+        if os.name == 'nt':  # For Windows
+            os.startfile(report_file)
+        elif os.name == 'posix':  # For Unix-based systems
+            os.system(f"xdg-open {report_file}")
+        
+        messagebox.showinfo("Report Generated", f"Report saved as {report_file} and opened.")
 
     def __del__(self):
         """Close the database connection when the app is closed."""
