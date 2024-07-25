@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime
 
 def update_database_schema():
     conn = sqlite3.connect('finance_management.db')

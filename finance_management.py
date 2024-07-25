@@ -1,29 +1,33 @@
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import messagebox
+from tkinter import ttk
 import sqlite3
 from datetime import datetime
-import os
+
+# Get the current date
+current_date = datetime.now().date()
 
 class FinanceApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Personal Finance Management App")
+        
+        # Initialize the database and create tables if they don't exist
+        self.initialize_database()
 
-        # Create database connection and table
-        self.conn = sqlite3.connect('finance_management.db')
-        self.cursor = self.conn.cursor()
-        self.create_table()
-
-        # Initialize variables
+        # variables being initialized
+        self.expenses = []
         self.total_expense = tk.DoubleVar()
         self.category_totals = {}
 
-        # Create GUI components
+        # Components of the GUI being created here
         self.create_widgets()
 
-    def create_table(self):
-        """Create the table if it doesn't exist."""
-        self.cursor.execute('''
+    def initialize_database(self):
+        # Create table if not exists
+        conn = sqlite3.connect('finance_management.db')
+        cursor = conn.cursor()
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS expenses (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 amount REAL,
@@ -31,12 +35,13 @@ class FinanceApp:
                 date TEXT
             )
         ''')
-        self.conn.commit()
+        conn.commit()
+        conn.close()
 
     def create_widgets(self):
         # Expense Entry Frame
         expense_frame = tk.Frame(self.root)
-        expense_frame.pack(pady=10)
+        expense_frame.grid(row=0, column=0, pady=10, padx=10, sticky="ew")
 
         tk.Label(expense_frame, text="Amount:").grid(row=0, column=0, padx=5)
         self.amount_entry = tk.Entry(expense_frame)
@@ -47,10 +52,20 @@ class FinanceApp:
         self.category_entry.grid(row=0, column=3, padx=5)
 
         tk.Button(expense_frame, text="Add Expense", command=self.add_expense).grid(row=0, column=4, padx=5)
+        
+        # Delete Expense Frame
+        delete_frame = tk.Frame(self.root)
+        delete_frame.grid(row=1, column=0, pady=10, padx=10, sticky="ew")
+
+        tk.Label(delete_frame, text="Expense ID to Delete:").grid(row=0, column=0, padx=5)
+        self.delete_id_entry = tk.Entry(delete_frame)
+        self.delete_id_entry.grid(row=0, column=1, padx=5)
+        
+        tk.Button(delete_frame, text="Delete Expense", command=self.delete_expense).grid(row=0, column=2, padx=5)
 
         # Total Expense Frame
         total_frame = tk.Frame(self.root)
-        total_frame.pack(pady=10)
+        total_frame.grid(row=2, column=0, pady=10, padx=10, sticky="ew")
 
         tk.Label(total_frame, text="Total Expenses:").grid(row=0, column=0, padx=5)
         self.total_label = tk.Label(total_frame, textvariable=self.total_expense)
@@ -58,9 +73,10 @@ class FinanceApp:
 
         # Expense List Frame
         list_frame = tk.Frame(self.root)
-        list_frame.pack(pady=10)
+        list_frame.grid(row=3, column=0, pady=10, padx=10, sticky="ew")
 
-        self.expense_tree = ttk.Treeview(list_frame, columns=("Amount", "Category", "Date"))
+        self.expense_tree = ttk.Treeview(list_frame, columns=("ID", "Amount", "Category", "Date"))
+        self.expense_tree.heading("ID", text="ID")
         self.expense_tree.heading("Amount", text="Amount")
         self.expense_tree.heading("Category", text="Category")
         self.expense_tree.heading("Date", text="Date")
@@ -68,7 +84,7 @@ class FinanceApp:
 
         # Category Totals Frame
         category_frame = tk.Frame(self.root)
-        category_frame.pack(pady=10)
+        category_frame.grid(row=4, column=0, pady=10, padx=10, sticky="ew")
 
         tk.Label(category_frame, text="Category Totals:").pack()
         self.category_list = tk.Listbox(category_frame)
@@ -76,29 +92,37 @@ class FinanceApp:
 
         # Report Button Frame
         report_frame = tk.Frame(self.root)
-        report_frame.pack(pady=10)
+        report_frame.grid(row=5, column=0, pady=10, padx=10, sticky="ew")
 
         tk.Button(report_frame, text="Generate Report", command=self.generate_report).pack()
+
+        # Exit Button Frame
+        exit_frame = tk.Frame(self.root)
+        exit_frame.grid(row=6, column=0, pady=10, padx=10, sticky="ew")
+
+        tk.Button(exit_frame, text="Exit", command=self.root.quit).pack(pady=10)
 
     def add_expense(self):
         try:
             amount = float(self.amount_entry.get())
             category = self.category_entry.get().strip()
-            date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
             if not category:
                 raise ValueError("Category cannot be empty")
+            
+            # Add expense to list and update total
+            self.expenses.append((amount, category))
+            self.total_expense.set(sum(exp[0] for exp in self.expenses))
 
-            # Insert expense into the database
-            self.cursor.execute('''
+            # Insert into database
+            conn = sqlite3.connect('finance_management.db')
+            cursor = conn.cursor()
+            cursor.execute('''
                 INSERT INTO expenses (amount, category, date)
                 VALUES (?, ?, ?)
-            ''', (amount, category, date))
-            self.conn.commit()
-
-            # Update total expense and category totals
-            self.total_expense.set(self.get_total_expense())
-            self.update_category_totals()
+            ''', (amount, category, datetime.now().date()))  # Use current date
+            conn.commit()
+            conn.close()
 
             # Clear entry fields
             self.amount_entry.delete(0, tk.END)
@@ -106,53 +130,101 @@ class FinanceApp:
 
             # Update GUI
             self.update_expense_list()
+            self.update_category_totals()
 
         except ValueError as e:
             messagebox.showerror("Invalid input", str(e))
 
-    def get_total_expense(self):
-        """Retrieve the total expense from the database."""
-        self.cursor.execute('SELECT SUM(amount) FROM expenses')
-        return self.cursor.fetchone()[0] or 0.0
+    def delete_expense(self):
+        try:
+            expense_id = int(self.delete_id_entry.get())
+            
+            # Delete from database
+            conn = sqlite3.connect('finance_management.db')
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM expenses WHERE id = ?', (expense_id,))
+            conn.commit()
+            conn.close()
+
+            # Clear entry field
+            self.delete_id_entry.delete(0, tk.END)
+
+            # Update GUI
+            self.update_expense_list()
+            self.update_category_totals()
+
+        except ValueError as e:
+            messagebox.showerror("Invalid input", str(e))
 
     def update_expense_list(self):
         # Clear current list
         for i in self.expense_tree.get_children():
             self.expense_tree.delete(i)
 
-        # Add all expenses
-        self.cursor.execute('SELECT amount, category, date FROM expenses')
-        for amount, category, date in self.cursor.fetchall():
-            self.expense_tree.insert("", "end", values=(amount, category, date))
+        # Add all expenses from the database
+        conn = sqlite3.connect('finance_management.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM expenses')
+        for row in cursor.fetchall():
+            self.expense_tree.insert("", "end", values=row)
+        conn.close()
 
     def update_category_totals(self):
         # Clear current list
         self.category_list.delete(0, tk.END)
 
-        # Calculate and display category totals
-        self.cursor.execute('SELECT category, SUM(amount) FROM expenses GROUP BY category')
-        for category, total in self.cursor.fetchall():
+        # Update category totals
+        conn = sqlite3.connect('finance_management.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT category, SUM(amount) FROM expenses
+            GROUP BY category
+        ''')
+        for category, total in cursor.fetchall():
             self.category_list.insert(tk.END, f"{category}: {total}")
+        conn.close()
 
     def generate_report(self):
-        """Generate a report of expenses and display it."""
-        report_file = 'expenses_report.txt'
-        with open(report_file, 'w') as file:
-            self.cursor.execute('SELECT amount, category, date FROM expenses')
-            for amount, category, date in self.cursor.fetchall():
-                file.write(f"Amount: {amount}, Category: {category}, Date: {date}\n")
+        # Generate report for today
+        conn = sqlite3.connect('finance_management.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, amount, category, date FROM expenses
+        ''')
+        report_data = cursor.fetchall()
+        conn.close()
 
-        # Open the report file using the default text editor
-        if os.name == 'nt':  # For Windows
-            os.startfile(report_file)
-        elif os.name == 'posix':  # For Unix-based systems
-            os.system(f"xdg-open {report_file}")
-        
-        messagebox.showinfo("Report Generated", f"Report saved as {report_file} and opened.")
+        # Display report
+        report_window = tk.Toplevel(self.root)
+        report_window.title("Expense Report")
 
-    def __del__(self):
-        """Close the database connection when the app is closed."""
-        self.conn.close()
+        report_text = tk.Text(report_window, wrap='word')
+        report_text.pack(expand=1, fill='both')
+
+        report_text.insert(tk.END, "Expense Report\n\n")
+        for row in report_data:
+            report_text.insert(tk.END, f"ID: {row[0]} | Amount: {row[1]} | Category: {row[2]} | Date: {row[3]}\n")
+
+    def generate_report_for_date(self, date):
+        # Generate report for a specific date
+        conn = sqlite3.connect('finance_management.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, amount, category, date FROM expenses WHERE date = ?
+        ''', (date,))
+        report_data = cursor.fetchall()
+        conn.close()
+
+        # Display report for specific date
+        report_window = tk.Toplevel(self.root)
+        report_window.title(f"Expense Report for {date}")
+
+        report_text = tk.Text(report_window, wrap='word')
+        report_text.pack(expand=1, fill='both')
+
+        report_text.insert(tk.END, f"Expense Report for {date}\n\n")
+        for row in report_data:
+            report_text.insert(tk.END, f"ID: {row[0]} | Amount: {row[1]} | Category: {row[2]} | Date: {row[3]}\n")
 
 if __name__ == "__main__":
     root = tk.Tk()
